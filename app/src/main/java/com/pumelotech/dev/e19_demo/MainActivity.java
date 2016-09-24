@@ -12,6 +12,7 @@ import com.pumelotech.dev.e19_demo.BLE.CscValueParser;
 import com.pumelotech.dev.e19_demo.BLE.LeConnector;
 import com.pumelotech.dev.e19_demo.BLE.callbacks.BleProfileCallback;
 import com.pumelotech.dev.e19_demo.BLE.callbacks.ConnectionCallback;
+import com.pumelotech.dev.e19_demo.BLE.utils.SlidingFilter;
 import com.pumelotech.dev.e19_demo.chart.DashboardData;
 import com.pumelotech.dev.e19_demo.view.DashboardView;
 
@@ -39,8 +40,8 @@ public class MainActivity extends AppCompatActivity {
         seekBar = (SeekBar) findViewById(R.id.seek_bar);
         seekBar.setMax(100);
         dialChart.setDashData(mDashboardData);
+        bleProfiles = BleProfiles.getInstance();
         LeConnector.getInstance().autoConnect("E19", connectionCallback);
-        bleProfiles = BleProfiles.INSTANCE;
         bleProfiles.setCallback(bleProfileCallback);
         updateChart();
 
@@ -62,12 +63,15 @@ public class MainActivity extends AppCompatActivity {
     int lastWheelEventTime = 0;
     long lastCumulativeCrankRevolutions = 0;
     int lastCrankEventTime = 0;
-    float speedSmooth = 0;
     float speed;
     float odometer;
     float average_speed;
-    long cadence = 0;
+    float cadence = 0;
+    SlidingFilter cadenceFilter = new SlidingFilter(30);
+    SlidingFilter speedFilter = new SlidingFilter(20);
     BleProfileCallback bleProfileCallback = new BleProfileCallback() {
+
+        CscValueParser parser = new CscValueParser(null);
         @Override
         public void onSending() {
 
@@ -80,38 +84,44 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onReceived(byte[] data) {
-            CscValueParser parser = new CscValueParser(data);
+            parser.setData(data);
             if ((parser.getFlag() & 0x01) == 0x01) {
                 int diff_time = parser.getLastWheelEventTime() - lastWheelEventTime;
                 if (diff_time < 0) {
                     diff_time += 65536;
+                }
+                if(diff_time == 0){
+                    return;
                 }
                 long diff_wheel_revolutions = parser.getCumulativeWheelRevolutions() - lastWheelRevolutions;
                 if (diff_wheel_revolutions < 0) {
                     diff_wheel_revolutions = 0;
                 }
                 if (lastWheelRevolutions != 0) {
-                    speed = diff_wheel_revolutions * WHEEL_CIRCUMFERENCE_MM * 1000 / (diff_time * KPH_TO_MM_PER_SEC);
+                    speed = speedFilter.updateFilter(diff_wheel_revolutions * WHEEL_CIRCUMFERENCE_MM * 1000 / (diff_time * KPH_TO_MM_PER_SEC));
                     odometer += diff_wheel_revolutions * WHEEL_CIRCUMFERENCE_MM / 1000000;
                 }
                 lastWheelRevolutions = parser.getCumulativeWheelRevolutions();
                 lastWheelEventTime = parser.getLastWheelEventTime();
                 Log.i(TAG, String.format("%2.1f", speed));
-            }
-            if ((parser.getFlag() & 0x02) == 0x02) {
+            }else if ((parser.getFlag() & 0x02) == 0x02) {
                 int diff_time = parser.getLastCrankEventTime() - lastCrankEventTime;
                 if (diff_time < 0) {
                     diff_time += 65536;
+                }
+                if(diff_time == 0){
+                    return;
                 }
                 long diff_crank_revolutions = parser.getCumulativeCrankRevolutions() - lastCumulativeCrankRevolutions;
                 if (diff_crank_revolutions < 0) {
                     diff_crank_revolutions = 0;
                 }
                 if (lastCumulativeCrankRevolutions != 0) {
-                    cadence = diff_crank_revolutions * 60 * 1000 / diff_time;
+                    cadence = cadenceFilter.updateFilter(diff_crank_revolutions * 60 * 1000 / diff_time);
                 }
                 lastCumulativeCrankRevolutions = parser.getCumulativeCrankRevolutions();
                 lastCrankEventTime = parser.getLastCrankEventTime();
+                Log.i(TAG, String.format("%d", (int)cadence));
             }
         }
     };
@@ -139,8 +149,7 @@ public class MainActivity extends AppCompatActivity {
         timer.schedule(new TimerTask() {
             @Override
             public void run() {
-                speedSmooth = speedSmooth * 9 / 10 + speed / 10;
-                mDashboardData.speed = speedSmooth;
+                mDashboardData.speed = speed;
                 mDashboardData.odometer = odometer;
                 if (mDashboardData.trip_second != 0) {
                     average_speed = odometer * 3600 / mDashboardData.trip_second;
@@ -152,6 +161,9 @@ public class MainActivity extends AppCompatActivity {
                 Date current_date = new Date();
                 mDashboardData.trip_second = (int) ((current_date.getTime() - mDashboardData.start_time) / 1000);
 
+                if(!bleProfiles.IS_Ready){
+                    bleProfiles.refresh();
+                }
             }
         }, 1000, 200);
     }

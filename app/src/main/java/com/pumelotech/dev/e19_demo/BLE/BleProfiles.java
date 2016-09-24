@@ -17,8 +17,7 @@ import java.util.UUID;
 /**
  * Created by x7che on 2016/7/14.
  */
-public enum BleProfiles implements TransferCallback {
-    INSTANCE;
+public class BleProfiles implements TransferCallback {
     private final static String TAG = MyApplication.DebugTag;
     private static final UUID CSC_SERVICE_UUID = UUID.fromString("00001816-0000-1000-8000-00805f9b34fb");
     private static final UUID CSC_MEASURE_CHAR_UUID = UUID.fromString("00002A5B-0000-1000-8000-00805f9b34fb");
@@ -27,6 +26,7 @@ public enum BleProfiles implements TransferCallback {
     boolean navCharacteristicBusy = false;
     LeConnector leConnector;
     BleProfileCallback mCallback = new NullBleProfileCallback();
+    static BleProfiles mBleProfiles;
 
     BleProfiles() {
         leConnector = LeConnector.getInstance();
@@ -34,6 +34,12 @@ public enum BleProfiles implements TransferCallback {
 
     }
 
+    static public BleProfiles getInstance(){
+        if(mBleProfiles==null){
+            mBleProfiles=new BleProfiles();
+        }
+        return mBleProfiles;
+    }
     public void setCallback(BleProfileCallback callback) {
         mCallback = callback;
     }
@@ -107,7 +113,7 @@ public enum BleProfiles implements TransferCallback {
     public void onCharacteristicChanged(BluetoothGattCharacteristic characteristic) {
 
         if (characteristic.getUuid().equals(CSC_MEASURE_CHAR_UUID)) {
-            mCallback.onReceived(CRC_MEASURE_CHAR.getValue());
+            mCallback.onReceived(characteristic.getValue());
 
         }
         Log.i(TAG, "new data notify:" + characteristic.getUuid().toString());
