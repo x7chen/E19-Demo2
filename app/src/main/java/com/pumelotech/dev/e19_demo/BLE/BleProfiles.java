@@ -34,12 +34,13 @@ public class BleProfiles implements TransferCallback {
 
     }
 
-    static public BleProfiles getInstance(){
-        if(mBleProfiles==null){
-            mBleProfiles=new BleProfiles();
+    static public BleProfiles getInstance() {
+        if (mBleProfiles == null) {
+            mBleProfiles = new BleProfiles();
         }
         return mBleProfiles;
     }
+
     public void setCallback(BleProfileCallback callback) {
         mCallback = callback;
     }
@@ -61,30 +62,27 @@ public class BleProfiles implements TransferCallback {
                     return;
                 }
                 for (BluetoothGatt gatt : gatts) {
-                    if (!gatt.getServices().isEmpty()) {
-                        for (BluetoothGattService service : gatt.getServices()) {
-                            if (service.getUuid().equals(CSC_SERVICE_UUID)) {
-                                final List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
-                                for (final BluetoothGattCharacteristic characteristic : characteristics) {
-                                    Log.i(TAG, "CHAR:" + characteristic.getUuid().toString());
-                                    if (characteristic.getUuid().equals(CSC_MEASURE_CHAR_UUID)) {
-                                        IS_Ready = true;
-                                        CRC_MEASURE_CHAR = characteristic;
-                                        gatt.setCharacteristicNotification(characteristic, true);
-                                        List<BluetoothGattDescriptor> descriptors = characteristic.getDescriptors();
-                                        for (BluetoothGattDescriptor dp : descriptors) {
-                                            dp.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                                            gatt.writeDescriptor(dp);
-                                        }
+                    for (BluetoothGattService service : gatt.getServices()) {
+                        if (service.getUuid().equals(CSC_SERVICE_UUID)) {
+                            final List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
+                            for (final BluetoothGattCharacteristic characteristic : characteristics) {
+                                Log.i(TAG, "CHAR:" + characteristic.getUuid().toString());
+                                if (characteristic.getUuid().equals(CSC_MEASURE_CHAR_UUID)) {
+//                                    IS_Ready = true;
+                                    CRC_MEASURE_CHAR = characteristic;
+                                    gatt.setCharacteristicNotification(characteristic, true);
+                                    List<BluetoothGattDescriptor> descriptors = characteristic.getDescriptors();
+                                    for (BluetoothGattDescriptor dp : descriptors) {
+                                        dp.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                                        gatt.writeDescriptor(dp);
                                     }
-                                    mCallback.onInitialized();
-                                    Log.i(TAG, "the characteristic is found");
                                 }
+                                mCallback.onInitialized();
+                                Log.i(TAG, "the characteristic is found");
                             }
                         }
                     }
                 }
-
             }
         }
     }

@@ -52,7 +52,6 @@ public class LeConnector extends BluetoothGattCallback {
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothGatt mBluetoothGatt;
     private List<BluetoothGatt> bluetoothGattList = new ArrayList<>();
-    private BluetoothDevice mDevice;
     private String mName;
     private ConnectionCallback mConnectionCallback = new NullConnectionCallback();
     private TransferCallback mTransferCallback = new NulltransferCallback();
@@ -73,6 +72,12 @@ public class LeConnector extends BluetoothGattCallback {
     public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
         if (newState == BluetoothProfile.STATE_CONNECTED) {
             mConnectionState = STATE_CONNECTED;
+            for (BluetoothGatt gat : bluetoothGattList) {
+                if (gat.getDevice().equals(gat.getDevice())) {
+                    bluetoothGattList.remove(gat);
+                }
+            }
+            bluetoothGattList.add(gatt);
             mConnectionCallback.onConnectionStateChange(newState);
             Log.i(TAG, "Connected to GATT server.");
             // Attempts to discover services after successful connection.
@@ -82,7 +87,9 @@ public class LeConnector extends BluetoothGattCallback {
         } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
             mConnectionState = STATE_DISCONNECTED;
             mConnectionCallback.onConnectionStateChange(newState);
-            autoConnect(mName);
+
+            bluetoothGattList.remove(gatt);
+//            autoConnect(mName);
         } else if (newState == BluetoothGatt.STATE_CONNECTING) {
         }
     }
@@ -120,6 +127,12 @@ public class LeConnector extends BluetoothGattCallback {
     @Override
     public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
         super.onDescriptorWrite(gatt, descriptor, status);
+        if (status == BluetoothGatt.GATT_SUCCESS) {
+
+        } else {
+            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+            gatt.writeDescriptor(descriptor);
+        }
     }
 
     public List<BluetoothGatt> getBluetoothGatts() {
@@ -128,10 +141,6 @@ public class LeConnector extends BluetoothGattCallback {
 
     public int getConnectionState() {
         return mConnectionState;
-    }
-
-    public BluetoothDevice getDevice() {
-        return mDevice;
     }
 
     public void setTransferCallback(TransferCallback callback) {
@@ -179,7 +188,7 @@ public class LeConnector extends BluetoothGattCallback {
 
             Log.d(TAG, "NAME:" + deviceName + "  RSSI:" + rssi);
             for (BluetoothDevice device1 : bluetoothManager.getConnectedDevices(GATT)) {
-                Log.i(TAG, "Msg:"+device1.getName());
+                Log.i(TAG, "Msg:" + device1.getName());
             }
         }
     };
@@ -188,10 +197,9 @@ public class LeConnector extends BluetoothGattCallback {
         if (device == null) {
             return;
         }
-        mDevice = device;
+        Log.i(TAG, "connect:" + device.getAddress() + "   gatts:" + bluetoothGattList.size());
+        device.connectGatt(context, true, this);
 
-        BluetoothGatt gatt = mDevice.connectGatt(context, false, this);
-        bluetoothGattList.add(gatt);
     }
 
     public void disconnect() {

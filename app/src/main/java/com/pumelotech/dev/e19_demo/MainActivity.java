@@ -161,9 +161,9 @@ public class MainActivity extends AppCompatActivity {
                 Date current_date = new Date();
                 mDashboardData.trip_second = (int) ((current_date.getTime() - mDashboardData.start_time) / 1000);
 
-                if(!bleProfiles.IS_Ready){
-                    bleProfiles.refresh();
-                }
+//                if(!bleProfiles.IS_Ready){
+//                    bleProfiles.refresh();
+//                }
             }
         }, 1000, 200);
     }
