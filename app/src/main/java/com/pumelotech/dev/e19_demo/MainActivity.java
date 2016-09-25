@@ -5,8 +5,14 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.WindowManager;
-import android.widget.SeekBar;
+import android.widget.Button;
 
+import com.amap.api.maps.AMap;
+import com.amap.api.maps.AMap.OnMapClickListener;
+import com.amap.api.maps.CameraUpdateFactory;
+import com.amap.api.maps.MapView;
+import com.amap.api.maps.model.CameraPosition;
+import com.amap.api.maps.model.LatLng;
 import com.pumelotech.dev.e19_demo.BLE.BleProfiles;
 import com.pumelotech.dev.e19_demo.BLE.CscValueParser;
 import com.pumelotech.dev.e19_demo.BLE.LeConnector;
@@ -22,14 +28,16 @@ import java.util.TimerTask;
 
 import static com.pumelotech.dev.e19_demo.R.id.dial_chart;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements OnMapClickListener {
     private String TAG = MyApplication.DebugTag;
 
     DashboardView dialChart;
-    SeekBar seekBar;
     DashboardData mDashboardData = DashboardData.INSTANCE;
     BleProfiles bleProfiles;
     Timer timer = new Timer();
+    private MapView mapView;
+    private AMap aMap;
+    private boolean firsttouch = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,8 +45,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         dialChart = (DashboardView) findViewById(dial_chart);
-        seekBar = (SeekBar) findViewById(R.id.seek_bar);
-        seekBar.setMax(100);
         dialChart.setDashData(mDashboardData);
         bleProfiles = BleProfiles.getInstance();
         LeConnector.getInstance().autoConnect("E19", connectionCallback);
@@ -49,11 +55,44 @@ public class MainActivity extends AppCompatActivity {
             Date startDate = new Date();
             mDashboardData.start_time = startDate.getTime();
         }
+
+        mapView = (MapView) findViewById(R.id.mapView);
+        mapView.onCreate(savedInstanceState);// 此方法必须重写
+        init();
+    }
+
+    /**
+     * 初始化AMap对象
+     */
+    private void init() {
+        if (aMap == null) {
+            aMap = mapView.getMap();
+        }
+        aMap.setOnMapClickListener(this);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mapView.onResume();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        mapView.onPause();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        mapView.onSaveInstanceState(outState);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        mapView.onDestroy();
         timer.cancel();
     }
 
@@ -72,6 +111,7 @@ public class MainActivity extends AppCompatActivity {
     BleProfileCallback bleProfileCallback = new BleProfileCallback() {
 
         CscValueParser parser = new CscValueParser(null);
+
         @Override
         public void onSending() {
 
@@ -90,7 +130,7 @@ public class MainActivity extends AppCompatActivity {
                 if (diff_time < 0) {
                     diff_time += 65536;
                 }
-                if(diff_time == 0){
+                if (diff_time == 0) {
                     return;
                 }
                 long diff_wheel_revolutions = parser.getCumulativeWheelRevolutions() - lastWheelRevolutions;
@@ -104,12 +144,12 @@ public class MainActivity extends AppCompatActivity {
                 lastWheelRevolutions = parser.getCumulativeWheelRevolutions();
                 lastWheelEventTime = parser.getLastWheelEventTime();
                 Log.i(TAG, String.format("%2.1f", speed));
-            }else if ((parser.getFlag() & 0x02) == 0x02) {
+            } else if ((parser.getFlag() & 0x02) == 0x02) {
                 int diff_time = parser.getLastCrankEventTime() - lastCrankEventTime;
                 if (diff_time < 0) {
                     diff_time += 65536;
                 }
-                if(diff_time == 0){
+                if (diff_time == 0) {
                     return;
                 }
                 long diff_crank_revolutions = parser.getCumulativeCrankRevolutions() - lastCumulativeCrankRevolutions;
@@ -121,7 +161,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 lastCumulativeCrankRevolutions = parser.getCumulativeCrankRevolutions();
                 lastCrankEventTime = parser.getLastCrankEventTime();
-                Log.i(TAG, String.format("%d", (int)cadence));
+                Log.i(TAG, String.format("%d", (int) cadence));
             }
         }
     };
@@ -168,4 +208,30 @@ public class MainActivity extends AppCompatActivity {
         }, 1000, 200);
     }
 
+    @Override
+    public void onMapClick(LatLng latLng) {
+        if (firsttouch) {
+            firsttouch = false;
+            aMap.animateCamera(CameraUpdateFactory.newCameraPosition(new CameraPosition(new LatLng(39.92463, 116.389139), 18, 0, 0)), 1500, new AMap.CancelableCallback() {
+
+                @Override
+                public void onFinish() {
+                    aMap.moveCamera(CameraUpdateFactory.changeTilt(60));
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    aMap.animateCamera(CameraUpdateFactory.changeBearing(90), 2000, null);
+
+                }
+
+                @Override
+                public void onCancel() {
+
+                }
+            });
+
+        }
+    }
 }

@@ -14,20 +14,10 @@
         android:layout_centerHorizontal="false"
         android:layout_alignParentRight="true" />
 
-    <SeekBar
-        android:layout_width="300dip"
-        android:layout_height="50dip"
-        android:id="@+id/seek_bar"
-        android:layout_below="@+id/dial_chart"
-        android:layout_alignParentRight="true" />
-
-    <ImageView
+    <com.amap.api.maps.MapView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:srcCompat="@drawable/ditu"
-        android:id="@+id/imageView"
-        android:layout_alignParentTop="false"
-        android:layout_alignWithParentIfMissing="false"
+        android:id="@+id/mapView"
         android:layout_alignParentLeft="true"
         android:layout_toRightOf="@id/dial_chart"
         android:layout_toStartOf="@+id/dial_chart"
