@@ -1,16 +1,27 @@
 package com.pumelotech.dev.e19_demo;
 
 import android.bluetooth.BluetoothProfile;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.ImageButton;
+import android.widget.TextView;
+import android.widget.Toast;
 
+import com.amap.api.location.AMapLocation;
+import com.amap.api.location.AMapLocationClient;
+import com.amap.api.location.AMapLocationClientOption;
+import com.amap.api.location.AMapLocationListener;
 import com.amap.api.maps.AMap;
 import com.amap.api.maps.AMap.OnMapClickListener;
 import com.amap.api.maps.CameraUpdateFactory;
+import com.amap.api.maps.LocationSource;
 import com.amap.api.maps.MapView;
+import com.amap.api.maps.UiSettings;
 import com.amap.api.maps.model.CameraPosition;
 import com.amap.api.maps.model.LatLng;
 import com.pumelotech.dev.e19_demo.BLE.BleProfiles;
@@ -28,7 +39,8 @@ import java.util.TimerTask;
 
 import static com.pumelotech.dev.e19_demo.R.id.dial_chart;
 
-public class MainActivity extends AppCompatActivity implements OnMapClickListener {
+public class MainActivity extends AppCompatActivity implements OnMapClickListener, LocationSource,
+                                                                            AMapLocationListener {
     private String TAG = MyApplication.DebugTag;
 
     DashboardView dialChart;
@@ -38,6 +50,15 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
     private MapView mapView;
     private AMap aMap;
     private boolean firsttouch = true;
+
+    private OnLocationChangedListener mListener;
+    private AMapLocationClient mlocationClient;
+    private AMapLocationClientOption mLocationOption;
+    private UiSettings mUiSettings;
+
+    private TextView textView;
+    private ImageButton btSetting;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,16 +70,36 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
         bleProfiles = BleProfiles.getInstance();
         LeConnector.getInstance().autoConnect("E19", connectionCallback);
         bleProfiles.setCallback(bleProfileCallback);
-        updateChart();
-
         if (mDashboardData.start_time == 0) {
             Date startDate = new Date();
             mDashboardData.start_time = startDate.getTime();
         }
-
+        btSetting = (ImageButton) findViewById(R.id.bt_setting);
+        btSetting.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(MainActivity.this,SettingsActivity.class));
+            }
+        });
+        ImageButton btReset = (ImageButton) findViewById(R.id.bt_reset);
+        textView = (TextView) findViewById(R.id.textView);
+        btReset.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mDashboardData.clear();
+                Date startDate = new Date();
+                mDashboardData.start_time = startDate.getTime();
+                cadenceFilter.clear();
+                speedFilter.clear();
+                cadence = 0;
+                odometer = 0;
+                speed = 0;
+            }
+        });
         mapView = (MapView) findViewById(R.id.mapView);
         mapView.onCreate(savedInstanceState);// 此方法必须重写
         init();
+        updateChart();
     }
 
     /**
@@ -67,8 +108,12 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
     private void init() {
         if (aMap == null) {
             aMap = mapView.getMap();
+            mUiSettings = aMap.getUiSettings();
         }
         aMap.setOnMapClickListener(this);
+        aMap.setLocationSource(this);// 设置定位监听
+        mUiSettings.setMyLocationButtonEnabled(true); // 是否显示默认的定位按钮
+        aMap.setMyLocationEnabled(true);// 是否可触发定位并显示定位层
     }
 
     @Override
@@ -106,8 +151,8 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
     float odometer;
     float average_speed;
     float cadence = 0;
-    SlidingFilter cadenceFilter = new SlidingFilter(30);
-    SlidingFilter speedFilter = new SlidingFilter(20);
+    SlidingFilter cadenceFilter = new SlidingFilter(20);
+    SlidingFilter speedFilter = new SlidingFilter(15);
     BleProfileCallback bleProfileCallback = new BleProfileCallback() {
 
         CscValueParser parser = new CscValueParser(null);
@@ -123,9 +168,10 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
         }
 
         @Override
-        public void onReceived(byte[] data) {
+        public void onCscsUpdate(byte[] data) {
             parser.setData(data);
             if ((parser.getFlag() & 0x01) == 0x01) {
+                mDashboardData.wheel_connection =true;
                 int diff_time = parser.getLastWheelEventTime() - lastWheelEventTime;
                 if (diff_time < 0) {
                     diff_time += 65536;
@@ -133,18 +179,21 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
                 if (diff_time == 0) {
                     return;
                 }
-                long diff_wheel_revolutions = parser.getCumulativeWheelRevolutions() - lastWheelRevolutions;
+                long diff_wheel_revolutions = parser.getCumulativeWheelRevolutions()
+                                            - lastWheelRevolutions;
                 if (diff_wheel_revolutions < 0) {
                     diff_wheel_revolutions = 0;
                 }
                 if (lastWheelRevolutions != 0) {
-                    speed = speedFilter.updateFilter(diff_wheel_revolutions * WHEEL_CIRCUMFERENCE_MM * 1000 / (diff_time * KPH_TO_MM_PER_SEC));
+                    speed = speedFilter.updateFilter(diff_wheel_revolutions * WHEEL_CIRCUMFERENCE_MM
+                            * 1000 / (diff_time * KPH_TO_MM_PER_SEC));
                     odometer += diff_wheel_revolutions * WHEEL_CIRCUMFERENCE_MM / 1000000;
                 }
                 lastWheelRevolutions = parser.getCumulativeWheelRevolutions();
                 lastWheelEventTime = parser.getLastWheelEventTime();
                 Log.i(TAG, String.format("%2.1f", speed));
             } else if ((parser.getFlag() & 0x02) == 0x02) {
+                mDashboardData.cadence_connection = true;
                 int diff_time = parser.getLastCrankEventTime() - lastCrankEventTime;
                 if (diff_time < 0) {
                     diff_time += 65536;
@@ -152,17 +201,31 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
                 if (diff_time == 0) {
                     return;
                 }
-                long diff_crank_revolutions = parser.getCumulativeCrankRevolutions() - lastCumulativeCrankRevolutions;
+                long diff_crank_revolutions = parser.getCumulativeCrankRevolutions()
+                        - lastCumulativeCrankRevolutions;
                 if (diff_crank_revolutions < 0) {
                     diff_crank_revolutions = 0;
                 }
                 if (lastCumulativeCrankRevolutions != 0) {
-                    cadence = cadenceFilter.updateFilter(diff_crank_revolutions * 60 * 1000 / diff_time);
+                    cadence = cadenceFilter.updateFilter(diff_crank_revolutions * 60 * 1000
+                            / diff_time);
                 }
                 lastCumulativeCrankRevolutions = parser.getCumulativeCrankRevolutions();
                 lastCrankEventTime = parser.getLastCrankEventTime();
                 Log.i(TAG, String.format("%d", (int) cadence));
             }
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    textView.setText("前轮："+lastWheelRevolutions +" 脚踏："+lastCumulativeCrankRevolutions);
+                }
+            });
+
+        }
+
+        @Override
+        public void onPressureUpdate(long pressure) {
+            mDashboardData.altirude = (1001-(float) pressure/100)*9;
         }
     };
 
@@ -170,7 +233,8 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
         @Override
         public void onConnectionStateChange(int newState) {
             if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                bleProfiles.IS_Ready = false;
+                mDashboardData.cadence_connection = false;
+                mDashboardData.wheel_connection = false;
             }
         }
 
@@ -232,6 +296,62 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
                 }
             });
 
+        }
+    }
+
+    /**
+     * 激活定位
+     */
+    @Override
+    public void activate(LocationSource.OnLocationChangedListener listener) {
+        mListener = listener;
+        if (mlocationClient == null) {
+            mlocationClient = new AMapLocationClient(this);
+            mLocationOption = new AMapLocationClientOption();
+            //设置定位监听
+            mlocationClient.setLocationListener(this);
+            //设置为高精度定位模式
+            mLocationOption.setLocationMode(AMapLocationClientOption.AMapLocationMode.Hight_Accuracy);
+            mLocationOption.setInterval(2000);
+            //设置定位参数
+            mlocationClient.setLocationOption(mLocationOption);
+            // 此方法为每隔固定时间会发起一次定位请求，为了减少电量消耗或网络流量消耗，
+            // 注意设置合适的定位时间的间隔（最小间隔支持为2000ms），并且在合适时间调用stopLocation()方法来取消定位请求
+            // 在定位结束后，在合适的生命周期调用onDestroy()方法
+            // 在单次定位情况下，定位无论成功与否，都无需调用stopLocation()方法移除请求，定位sdk内部会移除
+            mlocationClient.startLocation();
+        }
+
+    }
+
+    /**
+     * 停止定位
+     */
+    @Override
+    public void deactivate() {
+        mListener = null;
+        if (mlocationClient != null) {
+            mlocationClient.stopLocation();
+            mlocationClient.onDestroy();
+        }
+        mlocationClient = null;
+    }
+
+    @Override
+    public void onLocationChanged(AMapLocation aMapLocation) {
+        if (mListener != null) {
+            mListener.onLocationChanged(aMapLocation);// 显示系统小蓝点
+
+//            Toast.makeText(this,aMapLocation.getProvince()+//省信息
+//            aMapLocation.getCity()+//城市信息
+//            aMapLocation.getDistrict()+//城区信息
+//            aMapLocation.getStreet()+//街道信息
+//            aMapLocation.getStreetNum(),Toast.LENGTH_SHORT).show();//街道门牌号信息)
+        }
+        if (aMapLocation.getErrorCode() != 0) {
+            Log.e(TAG, "location Error, ErrCode:" + aMapLocation.getErrorCode() +
+                    ", errInfo:" +
+                    aMapLocation.getErrorInfo());
         }
     }
 }

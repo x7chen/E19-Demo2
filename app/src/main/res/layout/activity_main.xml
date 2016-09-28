@@ -23,15 +23,32 @@
         android:layout_toStartOf="@+id/dial_chart"
         android:scaleType="fitXY" />
 
+
     <ImageButton
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:srcCompat="@android:drawable/ic_menu_manage"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentStart="true"
-        android:layout_marginStart="17dp"
-        android:layout_marginTop="15dp"
-        android:id="@+id/imageButton"
-        android:background="#40101010" />
+        app:srcCompat="@android:drawable/ic_menu_rotate"
+        android:id="@+id/bt_reset"
+        android:background="#60101010"
+        android:layout_below="@+id/dial_chart"
+        android:layout_alignEnd="@+id/dial_chart" />
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="New Text"
+        android:id="@+id/textView"
+        android:layout_toStartOf="@+id/bt_reset"
+        android:layout_below="@+id/dial_chart"
+        android:textColor="@color/abc_input_method_navigation_guard"
+        android:layout_marginRight="100dp" />
+
+    <ImageButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/bt_setting"
+        android:src="@android:drawable/ic_menu_preferences"
+        android:layout_alignTop="@+id/textView"
+        android:layout_toEndOf="@+id/mapView"
+        android:layout_alignBottom="@+id/bt_reset" />
 </RelativeLayout>

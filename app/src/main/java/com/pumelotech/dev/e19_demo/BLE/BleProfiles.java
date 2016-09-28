@@ -12,6 +12,8 @@ import com.pumelotech.dev.e19_demo.BLE.callbacks.TransferCallback;
 import com.pumelotech.dev.e19_demo.MyApplication;
 
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 
 /**
@@ -21,6 +23,8 @@ public class BleProfiles implements TransferCallback {
     private final static String TAG = MyApplication.DebugTag;
     private static final UUID CSC_SERVICE_UUID = UUID.fromString("00001816-0000-1000-8000-00805f9b34fb");
     private static final UUID CSC_MEASURE_CHAR_UUID = UUID.fromString("00002A5B-0000-1000-8000-00805f9b34fb");
+    private static final UUID ENV_SERVICE_UUID = UUID.fromString("da1a1200-af00-40c6-bcda-e093af5a45db");
+    private static final UUID PRESSURE_CHAR_UUID = UUID.fromString("da1a1202-af00-40c6-bcda-e093af5a45db");
     private BluetoothGattCharacteristic CRC_MEASURE_CHAR;
     public boolean IS_Ready = false;
     boolean navCharacteristicBusy = false;
@@ -80,6 +84,27 @@ public class BleProfiles implements TransferCallback {
                                 mCallback.onInitialized();
                                 Log.i(TAG, "the characteristic is found");
                             }
+                        } else if(service.getUuid().equals(ENV_SERVICE_UUID)){
+                            final List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
+                            for (final BluetoothGattCharacteristic characteristic : characteristics) {
+                                if (characteristic.getUuid().equals(PRESSURE_CHAR_UUID)) {
+                                    final BluetoothGatt fgatt = gatt;
+                                    new Timer().schedule(new TimerTask() {
+                                        @Override
+                                        public void run() {
+                                            fgatt.setCharacteristicNotification(characteristic, true);
+                                            List<BluetoothGattDescriptor> descriptors = characteristic.getDescriptors();
+                                            for (BluetoothGattDescriptor dp : descriptors) {
+                                                dp.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                                                fgatt.writeDescriptor(dp);
+                                            }
+                                        }
+                                    },2000);
+
+                                }
+                                mCallback.onInitialized();
+                                Log.i(TAG, "the characteristic is found");
+                            }
                         }
                     }
                 }
@@ -101,7 +126,7 @@ public class BleProfiles implements TransferCallback {
     public void onCharacteristicRead(BluetoothGattCharacteristic characteristic) {
 
         if (characteristic.equals(CRC_MEASURE_CHAR)) {
-            mCallback.onReceived(CRC_MEASURE_CHAR.getValue());
+            mCallback.onCscsUpdate(CRC_MEASURE_CHAR.getValue());
 
         }
         Log.i(TAG, "new data read");
@@ -111,8 +136,10 @@ public class BleProfiles implements TransferCallback {
     public void onCharacteristicChanged(BluetoothGattCharacteristic characteristic) {
 
         if (characteristic.getUuid().equals(CSC_MEASURE_CHAR_UUID)) {
-            mCallback.onReceived(characteristic.getValue());
+            mCallback.onCscsUpdate(characteristic.getValue());
 
+        }else if(characteristic.getUuid().equals(PRESSURE_CHAR_UUID)){
+            mCallback.onPressureUpdate(parserPressure(characteristic.getValue()));
         }
         Log.i(TAG, "new data notify:" + characteristic.getUuid().toString());
         StringBuilder stringBuilder = new StringBuilder();
@@ -125,5 +152,14 @@ public class BleProfiles implements TransferCallback {
     @Override
     public void onServicesDiscovered() {
         refresh();
+    }
+
+    private long parserPressure(byte[] data) {
+        long value;
+        value = data[3] & 0xFFL;
+        value = (value << 8) | (data[2] & 0xFFL);
+        value = (value << 8) | (data[1] & 0xFFL);
+        value = (value << 8) | (data[0] & 0xFFL);
+        return value;
     }
 }

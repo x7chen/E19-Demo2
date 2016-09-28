@@ -34,4 +34,8 @@ public class SlidingFilter {
     public void setSize(int size) {
         this.size = size;
     }
+
+    public void clear(){
+        filter.clear();
+    }
 }

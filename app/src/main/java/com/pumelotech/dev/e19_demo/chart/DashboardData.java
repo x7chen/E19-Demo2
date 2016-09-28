@@ -13,6 +13,8 @@ public enum DashboardData {
     public float average_speed;
     public float altirude;
     public long start_time;
+    public boolean cadence_connection;
+    public boolean wheel_connection;
 
     public void clear() {
         speed = 0;

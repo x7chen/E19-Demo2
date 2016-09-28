@@ -16,7 +16,12 @@ public class NullBleProfileCallback implements BleProfileCallback {
     }
 
     @Override
-    public void onReceived(byte[] data) {
+    public void onCscsUpdate(byte[] data) {
+
+    }
+
+    @Override
+    public void onPressureUpdate(long pressure) {
 
     }
 }

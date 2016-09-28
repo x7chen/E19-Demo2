@@ -90,6 +90,16 @@ public class DashboardChart implements IRender {
         }
         barPaint.setStrokeWidth(50);
         canvas.drawLine(SPEED_BASE_X + 100, SPEED_BASE_Y + 330, SPEED_BASE_X + 100 + dashboardData.speed * 5, SPEED_BASE_Y + 330, barPaint);
+
+        Paint connectionPaint = new Paint();
+        connectionPaint.setStrokeMiter(1);
+        connectionPaint.setStyle(Paint.Style.FILL);
+        if(dashboardData.wheel_connection){
+            connectionPaint.setColor(0xFF00A000);
+        }else {
+            connectionPaint.setColor(Color.RED);
+        }
+        canvas.drawCircle(SPEED_BASE_X+550,SPEED_BASE_Y+100,20,connectionPaint);
     }
 
     void drawCadence(Canvas canvas) {
@@ -124,6 +134,16 @@ public class DashboardChart implements IRender {
         unitPaint.setTextSize(60);
         unitPaint.setFakeBoldText(true);
         canvas.drawText("RPM", CADENCE_BASE_X + 400, CADENCE_BASE_Y + 350, unitPaint);
+
+        Paint connectionPaint = new Paint();
+        connectionPaint.setStrokeMiter(1);
+        connectionPaint.setStyle(Paint.Style.FILL);
+        if(dashboardData.cadence_connection){
+            connectionPaint.setColor(0xFF00A000);
+        }else {
+            connectionPaint.setColor(Color.RED);
+        }
+        canvas.drawCircle(CADENCE_BASE_X+550,CADENCE_BASE_Y+100,20,connectionPaint);
     }
     void drawOdometer(Canvas canvas) {
         //绘制标题

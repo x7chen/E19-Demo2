@@ -6,5 +6,6 @@ package com.pumelotech.dev.e19_demo.BLE.callbacks;
 public interface BleProfileCallback {
     void onSending();
     void onInitialized();
-    void onReceived(byte[] data);
+    void onCscsUpdate(byte[] data);
+    void onPressureUpdate(long pressure);
 }
