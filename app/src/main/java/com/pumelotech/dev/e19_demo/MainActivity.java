@@ -2,15 +2,16 @@ package com.pumelotech.dev.e19_demo;
 
 import android.bluetooth.BluetoothProfile;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.Preference;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.amap.api.location.AMapLocation;
 import com.amap.api.location.AMapLocationClient;
@@ -40,7 +41,7 @@ import java.util.TimerTask;
 import static com.pumelotech.dev.e19_demo.R.id.dial_chart;
 
 public class MainActivity extends AppCompatActivity implements OnMapClickListener, LocationSource,
-                                                                            AMapLocationListener {
+        AMapLocationListener {
     private String TAG = MyApplication.DebugTag;
 
     DashboardView dialChart;
@@ -58,6 +59,9 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
 
     private TextView textView;
     private ImageButton btSetting;
+
+    float BASE_ALTITUDE;
+    boolean altitude_is_cal = false;
 
 
     @Override
@@ -78,7 +82,7 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
         btSetting.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivity(new Intent(MainActivity.this,SettingsActivity.class));
+                startActivity(new Intent(MainActivity.this, SettingsActivity.class));
             }
         });
         ImageButton btReset = (ImageButton) findViewById(R.id.bt_reset);
@@ -114,7 +118,42 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
         aMap.setLocationSource(this);// 设置定位监听
         mUiSettings.setMyLocationButtonEnabled(true); // 是否显示默认的定位按钮
         aMap.setMyLocationEnabled(true);// 是否可触发定位并显示定位层
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        int wheel_type = Integer.parseInt(preferences.getString("wheel_circumference", "1"));
+        switch (wheel_type) {
+            case 0:
+                WHEEL_CIRCUMFERENCE_MM = (float) (25 * 25.4 * 3.14);
+                break;
+            case 1:
+                WHEEL_CIRCUMFERENCE_MM = (float) (26 * 25.4 * 3.14);
+                break;
+            case 2:
+                WHEEL_CIRCUMFERENCE_MM = (float) (27.5 * 25.4 * 3.14);
+                break;
+            case 3:
+                WHEEL_CIRCUMFERENCE_MM = (float) (28 * 25.4 * 3.14);
+                break;
+            default:
+                WHEEL_CIRCUMFERENCE_MM = 2000;
+                break;
+        }
+
+        current_altitude = Float.parseFloat(preferences.getString("current_altitude", "1"));
+        preferences.registerOnSharedPreferenceChangeListener(new SharedPreferences.OnSharedPreferenceChangeListener() {
+            @Override
+            public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+                if (key.equals("current_altitude")) {
+                    altitude_is_cal = false;
+                    current_altitude = Float.parseFloat(sharedPreferences.getString(key, "1"));
+
+                }
+                Log.i(TAG,"new CAl");
+            }
+        });
+
     }
+
+    float current_altitude;
 
     @Override
     protected void onResume() {
@@ -171,7 +210,7 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
         public void onCscsUpdate(byte[] data) {
             parser.setData(data);
             if ((parser.getFlag() & 0x01) == 0x01) {
-                mDashboardData.wheel_connection =true;
+                mDashboardData.wheel_connection = true;
                 int diff_time = parser.getLastWheelEventTime() - lastWheelEventTime;
                 if (diff_time < 0) {
                     diff_time += 65536;
@@ -180,7 +219,7 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
                     return;
                 }
                 long diff_wheel_revolutions = parser.getCumulativeWheelRevolutions()
-                                            - lastWheelRevolutions;
+                        - lastWheelRevolutions;
                 if (diff_wheel_revolutions < 0) {
                     diff_wheel_revolutions = 0;
                 }
@@ -217,7 +256,7 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    textView.setText("前轮："+lastWheelRevolutions +" 脚踏："+lastCumulativeCrankRevolutions);
+                    textView.setText("前轮：" + lastWheelRevolutions + " 脚踏：" + lastCumulativeCrankRevolutions);
                 }
             });
 
@@ -225,7 +264,11 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
 
         @Override
         public void onPressureUpdate(long pressure) {
-            mDashboardData.altirude = (1001-(float) pressure/100)*9;
+            if (!altitude_is_cal) {
+                BASE_ALTITUDE = current_altitude - (1000 - (float) pressure / 100) * 9;
+                altitude_is_cal = true;
+            }
+            mDashboardData.altitude = BASE_ALTITUDE + (1000 - (float) pressure / 100) * 9;
         }
     };
 

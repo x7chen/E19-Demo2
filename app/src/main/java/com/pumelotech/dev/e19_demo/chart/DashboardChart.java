@@ -213,7 +213,7 @@ public class DashboardChart implements IRender {
         numPaint.setTypeface(MyApplication.fontPhotonicaStraight);
         numPaint.setColor(Color.RED);
         numPaint.setTextSize(60);
-        canvas.drawText(String.format(Locale.CHINA, "%4.1f", dashboardData.altirude), ALTITUDE_BASE_X + 150, ALTITUDE_BASE_Y + 140, numPaint);
+        canvas.drawText(String.format(Locale.CHINA, "%4.1f", dashboardData.altitude), ALTITUDE_BASE_X + 150, ALTITUDE_BASE_Y + 140, numPaint);
         //绘制单位
         Paint unitPaint = new Paint();
         unitPaint.setColor(Color.RED);
