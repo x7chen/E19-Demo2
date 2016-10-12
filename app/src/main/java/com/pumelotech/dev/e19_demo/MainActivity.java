@@ -12,6 +12,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.amap.api.location.AMapLocation;
 import com.amap.api.location.AMapLocationClient;
@@ -102,8 +103,10 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
         });
         mapView = (MapView) findViewById(R.id.mapView);
         mapView.onCreate(savedInstanceState);// 此方法必须重写
-        init();
+
         updateChart();
+
+        Toast.makeText(this,"请校准海拔",Toast.LENGTH_SHORT).show();
     }
 
     /**
@@ -137,13 +140,13 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
                 WHEEL_CIRCUMFERENCE_MM = 2000;
                 break;
         }
-
+        altitude_is_cal = false;
         current_altitude = Float.parseFloat(preferences.getString("current_altitude", "1"));
         preferences.registerOnSharedPreferenceChangeListener(new SharedPreferences.OnSharedPreferenceChangeListener() {
             @Override
             public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
                 if (key.equals("current_altitude")) {
-                    altitude_is_cal = false;
+
                     current_altitude = Float.parseFloat(sharedPreferences.getString(key, "1"));
 
                 }
@@ -159,6 +162,7 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
     protected void onResume() {
         super.onResume();
         mapView.onResume();
+        init();
     }
 
     @Override
@@ -390,6 +394,7 @@ public class MainActivity extends AppCompatActivity implements OnMapClickListene
 //            aMapLocation.getDistrict()+//城区信息
 //            aMapLocation.getStreet()+//街道信息
 //            aMapLocation.getStreetNum(),Toast.LENGTH_SHORT).show();//街道门牌号信息)
+//            mDashboardData.altitude = (float) aMapLocation.getAltitude(); //仅在AMapLocation.getProvider()是gps时有效
         }
         if (aMapLocation.getErrorCode() != 0) {
             Log.e(TAG, "location Error, ErrCode:" + aMapLocation.getErrorCode() +

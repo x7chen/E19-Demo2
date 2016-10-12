@@ -50,5 +50,6 @@
         android:src="@android:drawable/ic_menu_preferences"
         android:layout_alignTop="@+id/textView"
         android:layout_toEndOf="@+id/mapView"
-        android:layout_alignBottom="@+id/bt_reset" />
+        android:layout_alignBottom="@+id/bt_reset"
+        android:background="#60000000" />
 </RelativeLayout>

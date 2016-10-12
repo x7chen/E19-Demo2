@@ -24,6 +24,10 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
+import android.bluetooth.le.AdvertiseCallback;
+import android.bluetooth.le.AdvertiseData;
+import android.bluetooth.le.AdvertiseSettings;
+import android.bluetooth.le.BluetoothLeAdvertiser;
 import android.bluetooth.le.ScanFilter;
 import android.content.Context;
 import android.util.Log;
@@ -231,6 +235,7 @@ public class LeConnector extends BluetoothGattCallback {
         bluetoothManager =
                 (BluetoothManager) MyApplication.context.getSystemService(Context.BLUETOOTH_SERVICE);
         mBluetoothAdapter = bluetoothManager.getAdapter();
+
         // Checks if Bluetooth is supported on the device.
         if (mBluetoothAdapter == null) {
             Log.i(TAG, "BLE is not support!");
